@@ -13,14 +13,22 @@ resource "aws_key_pair" "master-key" {
 
 resource "aws_instance" "jenkins" {
   provider                    = aws.region-master
-  ami                         = data.aws_ami.latest_ubuntu_linux.id
+  ami                         = data.aws_ami.latest_amazon_linux.id
   instance_type               = var.instance-type
   key_name                    = aws_key_pair.master-key.key_name
   associate_public_ip_address = true
   vpc_security_group_ids      = [aws_security_group.jenkins-sg.id]
   subnet_id                   = aws_subnet.subnet_1_jen.id
 
-  user_data = <<EOF
+
+  provisioner "local-exec" {
+    command = <<EOF
+aws --profile ${var.profile} ec2 wait instance-status-ok --region ${var.region} --instance-ids ${self.id}
+ansible-playbook --extra-vars 'passed_in_hosts=tag_Name_${self.tags.Name}' playbook.yaml
+EOF
+  }
+
+/*  user_data = <<EOF
 #! /bin/bash
 sudo apt-get update
 sudo apt-get install \ apt-transport-https \ ca-certificates \ curl \ gnupg \ lsb-release
@@ -30,7 +38,7 @@ sudo apt-get update
 sudo apt-get install docker-ce docker-ce-cli containerd.io
 sudo docker run -p 8080:8080 -p 50000:50000 jenkins
 EOF
-
+*/
   tags = {
     Name = "jenkins_master"
   }
